@@ -7,8 +7,8 @@ KetaiSensor sensor;
 float cursorX, cursorY;
 float lastAccTime = millis();
 float magnetValue = 0;
-boolean isTapped = false;
-float tapCount = 0;
+boolean propClose = false; 
+boolean onStageOne = true;
 
 private class Target
 {
@@ -32,7 +32,7 @@ void setup() {
   sensor.start();
   orientation(PORTRAIT);
 
-  rectMode(CENTER);
+  rectMode(CORNERS);
   textFont(createFont("Arial", 40)); //sets the font to Arial size 20
   textAlign(CENTER);
 
@@ -54,6 +54,8 @@ void draw() {
   noStroke(); //no stroke
 
   countDownTimerWait--;
+  isCorrectHit(); 
+
 
   if (startTime == 0)
     startTime = millis();
@@ -74,14 +76,19 @@ void draw() {
   /* Check to avoid out of bounds error */
   if (trialIndex < trialCount)  
   {
+    /* Changed to Aubrey Code */
     for (int i=0; i<4; i++)
     {
-      if (targets.get(trialIndex).target==i)
+      int j = targets.get(trialIndex).target;
+
+      if (j==i)
         fill(0, 255, 0);
       else
         fill(180, 180, 180);
-      ellipse(i*150+100, 300, 100, 100);
+      stroke(255);
+      rect(((i%2)*(width/2)), ((i/2)*(height/2)), ((i%2)*(width/2)) + width/2, ((i/2)*(height/2)) + height/2);
     }
+    /* End of change */
   }
 
   fill(255, 0, 0);
@@ -91,21 +98,21 @@ void draw() {
   textSize(60);
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, 50);
   textSize(40);
-  
+
   /* Check to avoid out of bounds error */
   if (trialIndex < trialCount) 
   {
-    text("Target #" + (targets.get(trialIndex).target)+1, width/2, 100);
-
-
-    if (targets.get(trialIndex).action==0)
-      text("1 TAP", width/2, 150);
-    else
-      text("2 TAPS", width/2, 150);
-      
-      
-  } else 
-  text("DONE DONE!", width/2, 100);
+    /* Display different text for stage one and two */
+    if (onStageOne)
+      text("TILT TO GREEN", width/2, 100);
+    else 
+    { 
+      if (targets.get(trialIndex).action==0)
+        text("TAP DOWN", width/2, 100);
+      else
+        text("TAP UP", width/2, 100);
+    }
+  } 
 }
 
 void onAccelerometerEvent(float x, float y, float z)
@@ -125,68 +132,67 @@ void onAccelerometerEvent(float x, float y, float z)
   lastAccTime = millis();
 }
 
+/* Gets abs value of Magnetic field in uT */
 void onMagneticFieldEvent(float x, float y, float z) 
+{
+  magnetValue = sqrt(sq(x) + sq(y) + sq(z));
+}
+
+/* Proximity value, either 5.0 or 0
+ * When at 0, propClose is set to true. */
+void onProximityEvent(float d) 
+{
+  if (d < 3) propClose = true;
+  else propClose = false;
+}
+
+void isCorrectHit() 
 {
   /* Check to avoid out of bounds error */
   if (trialIndex >= trialCount)
     return;
 
   Target t = targets.get(trialIndex);
-  magnetValue = sqrt(sq(x) + sq(y) + sq(z));
 
   if (countDownTimerWait<0) //possible hit event
   {
     if (hitTest()==t.target)//check if it is the right target
     {
-      /* Convoluted code here handles one tap or two taps  */
-      if (t.action == 0)
-      {
-        // println("Right target, Correct Magnetic Value! " + hitTest());
-        if (magnetValue > 200) trialIndex++; //next trial!
-      } else if (t.action == 1)
-      {
-        if (!isTapped) 
-        {
-          if (magnetValue > 200) 
-          {
-            isTapped = true;
-          }
-        } else  
-        {
-          /* 1st Tap Detected when magnet value goes down */
-          if ((magnetValue < 200) && isTapped)
-          {
-            tapCount = 1;
-            // println("First tap detected!");
-          } else 
-          {
-            /* 2nd Tap detected */
-            if ((tapCount == 1) && (magnetValue > 200))
-            {
-              println("Right target, Correct Magnetic Value! " + hitTest());
-              trialIndex++; //next trial!
-
-              /* Resetting my values */
-              isTapped = false;
-              tapCount = 0;
-            }
-          }
-        }
+      onStageOne = false;
+      /* Handle action one Magnet  */
+      if ((t.action == 0) && (magnetValue > 200)) {
+        trialIndex++; //next trial!
+        onStageOne = true;
       }
-      //else
-      //   println("Right target, Magnetic Value too low!");
-
-      countDownTimerWait=6; //wait 0.1 sec before allowing next trial
-    } 
-    // else
-    // println("Missed target! " + hitTest()); //no recording errors this bakeoff.
+      else if ((t.action == 1) && (propClose == true))
+      {
+        trialIndex++;
+        onStageOne = true;
+      }
+      else
+        println("You missed Target");
+    }
+    else 
+      onStageOne = true;
+      
+    countDownTimerWait=30; //wait 0.1 sec before allowing next trial
   }
 }
+
+/* Return which Quadrant the cursor is in!! */
 int hitTest() 
 {
-  for (int i=0; i<4; i++)
-    if (dist(i*150+100, 300, cursorX, cursorY)<100)
-      return i;
+
+  /* Quad 0 */
+  if (dist(width/4, width/4, cursorX, cursorY) < 150)
+    return 0;
+  else if (dist(3*width/4, width/4, cursorX, cursorY) < 150)
+    return 1;
+  /* Rect code draws 3 before 2 so we invert 'em to match logic */
+  else if (dist(3*width/4, 3*width/4, cursorX, cursorY) < 150)
+    return 3;
+  else if (dist(width/4, 3*width/4, cursorX, cursorY) < 150)
+    return 2;
 
   return -1;
 }
