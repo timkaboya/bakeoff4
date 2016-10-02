@@ -16,7 +16,7 @@ private class Target
   int action = 0;
 }
 
-int trialCount = 5; //this will be set higher for the bakeoff
+int trialCount = 20; //this will be set higher for the bakeoff
 int trialIndex = 0;
 ArrayList<Target> targets = new ArrayList<Target>();
 
@@ -104,13 +104,13 @@ void draw() {
   {
     /* Display different text for stage one and two */
     if (onStageOne)
-      text("TILT TO GREEN", width/2, 100);
+      text("TILT GREEN UP", width/2, 100);
     else 
     { 
       if (targets.get(trialIndex).action==0)
-        text("TAP DOWN", width/2, 100);
+        text("TAP SIDE", width/2, 100);
       else
-        text("TAP UP", width/2, 100);
+        text("TAP PROX", width/2, 100);
     }
   } 
 }
@@ -121,15 +121,14 @@ void onAccelerometerEvent(float x, float y, float z)
   if (userDone)
     return;
 
-  if ((lastAccTime - millis()) < 20) 
+  if ((lastAccTime - millis()) < 100) 
   {
     cursorX = 300+x*40; //cented to window and scaled
     cursorY = 300-y*40; //cented to window and scaled
   }
 
-
-
   lastAccTime = millis();
+  
 }
 
 /* Gets abs value of Magnetic field in uT */
@@ -184,15 +183,15 @@ int hitTest()
 {
 
   /* Quad 0 */
-  if (dist(width/4, width/4, cursorX, cursorY) < 150)
+  if ((cursorX < 300) && (cursorY < 300))
     return 0;
-  else if (dist(3*width/4, width/4, cursorX, cursorY) < 150)
+  else if ((cursorX > 300) && (cursorY < 300))
     return 1;
   /* Rect code draws 3 before 2 so we invert 'em to match logic */
-  else if (dist(3*width/4, 3*width/4, cursorX, cursorY) < 150)
-    return 3;
-  else if (dist(width/4, 3*width/4, cursorX, cursorY) < 150)
+  else if ((cursorX < 300) && (cursorY > 300))
     return 2;
+  else if ((cursorX > 300) && (cursorY > 300))
+    return 3;
 
   return -1;
 }
